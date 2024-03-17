@@ -1,0 +1,51 @@
+service: knowledge-base-api
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: python3.12
+  stage: dev
+  region: us-east-1
+  environment:
+    KNOWLEDGE_BASE_ID: ${self:custom.knowledgeBaseID}
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "bedrock:InvokeModel"
+            - "bedrock:Retrieve"
+            - "bedrock:RetrieveAndGenerate"
+          Resource: "*"
+
+custom:
+  knowledgeBaseID: "<your knowledge base ID>"
+  lambdaLayerS3BucketName: "<your S3 bucketname>"
+
+functions:
+  invokeKnowledgeBase:
+    handler: handler.lambda_handler
+    memorySize: 256
+    timeout: 60
+    layers:
+      - { Ref: DeployKnowledgeBaseLambdaLayer }
+    events:
+      - http:
+          path: /
+          method: get
+          cors: true
+
+resources:
+  Resources:
+    DeployKnowledgeBaseLambdaLayer:
+      Type: AWS::Lambda::LayerVersion
+      Properties:
+        LayerName: KnowledgeBaseLambdaLayer
+        Description: Knowledge Base Lambda Layer
+        Content:
+          S3Bucket: ${self:custom.lambdaLayerS3BucketName}
+          S3Key: lambdalayer/knowledgebase_lambdalayer.zip
+        CompatibleRuntimes:
+          - python3.12
+          - python3.11
+          - python3.10
